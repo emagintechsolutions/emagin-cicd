@@ -1,0 +1,113 @@
+apiVersion: v1
+data:
+  script.sh: |-
+    sleep 1m
+    apt-get update && \
+    apt-get -y install apt-transport-https \
+         ca-certificates \
+         curl \
+         gnupg2 \
+         software-properties-common && \
+    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg > /tmp/dkey; apt-key add /tmp/dkey && \
+    add-apt-repository \
+       "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+       $(lsb_release -cs) \
+       stable" && \
+    apt-get update && \
+    apt-get -y install docker-ce
+    rm -rf /out/*
+    chmod 777 /out/
+    mkdir -p /out/sitespeed
+    cd /out/sitespeed
+    cat << EOF > /out/sitespeed/budget.json
+    {
+      "browsertime.pageSummary": [{
+        "metric": "statistics.timings.firstPaint.median",
+        "max": 1100
+        }, {
+        "metric": "statistics.visualMetrics.FirstVisualChange.median",
+        "max": 3500
+       }],
+      "coach.pageSummary": [{
+        "metric": "advice.performance.score",
+        "min": 70
+      }, {
+        "metric": "advice.info.domElements",
+        "max": 500
+      }, {
+        "metric": "advice.info.domDepth.max",
+        "max": 20
+      }, {
+        "metric": "advice.info.iframes",
+        "max": 2
+      }, {
+        "metric": "advice.info.pageCookies.max",
+        "max": 15
+      }],
+      "pagexray.pageSummary": [{
+        "metric": "transferSize",
+        "max": 10000000
+      }, {
+        "metric": "requests",
+        "max": 80
+      }, {
+        "metric": "missingCompression",
+        "max": 0
+      }, {
+        "metric": "contentTypes.css.requests",
+        "max": 1
+      }, {
+        "metric": "contentTypes.image.transferSize",
+        "max": 10000000
+      },{
+        "metric": "documentRedirects",
+        "max": 0
+      }]
+    }
+    EOF
+    docker run --shm-size=1g --rm --network=host -v /out/sitespeed:/sitespeed.io sitespeedio/sitespeed.io http://15.206.11.209 --outputFolder junitoutput --budget.configPath budget.json --budget.output junit -b chrome -n 3
+    sleep 1m
+    curl -u admin:kodewatch -X DELETE 'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/sitespeed-report'
+    curl -u admin:kodewatch -X MKCOL 'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/sitespeed-report'
+    curl -u admin:kodewatch -X PUT 'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/sitespeed-report/sitespeed.html' -F myfile=@"/out/sitespeed/junitoutput/index.html"
+
+kind: ConfigMap
+metadata:
+  name: speed-configmap
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: nginx
+  name: sitespeed-job
+spec:
+  template:
+    spec:
+      containers:
+        - command:
+            - sh
+            - /opt/script/script.sh
+          image: nginx
+          name: nginx
+          volumeMounts:
+            - mountPath: /out
+              name: host-volume
+              readOnly: false
+            - mountPath: /var/run/docker.sock
+              name: docker-volume
+              readOnly: false
+            - mountPath: /opt/script
+              name: speed-configmap
+              readOnly: false
+      restartPolicy: Never
+      volumes:
+        - name: host-volume
+          hostPath:
+            path: /out
+        - name: docker-volume
+          hostPath:
+            path: /var/run/docker.sock
+        - configMap:
+            name: speed-configmap
+          name: speed-configmap

@@ -1,0 +1,67 @@
+apiVersion: v1
+data:
+  script.sh: |-
+    sleep 1m
+    apt-get update && \
+    apt-get -y install apt-transport-https \
+         ca-certificates \
+         curl \
+         gnupg2 \
+         software-properties-common && \
+    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg > /tmp/dkey; apt-key add /tmp/dkey && \
+    add-apt-repository \
+       "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+       $(lsb_release -cs) \
+       stable" && \
+    apt-get update && \
+    apt-get -y install docker-ce
+    rm -rf /out/*
+    chmod 777 /out/
+    docker run --rm -v /out:/zap/wrk/:rw -t owasp/zap2docker-live zap-baseline.py   -t http://15.206.11.209  -d -r demo_Dev_ZAP_VULNERABILITY_REPORT.html -x  demo_Dev_ZAP_VULNERABILITY_REPORT.xml
+    sleep 2m
+    ls /out/
+    curl -u admin:kodewatch -X DELETE 'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/zaproxy-report'
+    curl -u admin:kodewatch -X MKCOL 'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/zaproxy-report'
+    curl -u admin:kodewatch -X PUT  'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/zaproxy-report/demo_Dev_ZAP_VULNERABILITY_REPORT.html' -F myfile=@"/out/demo_Dev_ZAP_VULNERABILITY_REPORT.html"
+    curl -u admin:kodewatch -X PUT  'http://owncloud.kodewatch.svc.cluster.local:8080/remote.php/webdav/zaproxy-report/demo_Dev_ZAP_VULNERABILITY_REPORT.xml' -F myfile=@"/out/demo_Dev_ZAP_VULNERABILITY_REPORT.xml"
+    
+kind: ConfigMap
+metadata:
+  name: zap-configmap
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: nginx
+  name: zaproxy-job
+spec:
+  template:
+    spec:
+      containers:
+        - command:
+            - sh
+            - /opt/script/script.sh
+          image: nginx
+          name: nginx
+          volumeMounts:
+            - mountPath: /out
+              name: host-volume
+              readOnly: false
+            - mountPath: /var/run/docker.sock
+              name: docker-volume
+              readOnly: false
+            - mountPath: /opt/script
+              name: zap-configmap
+              readOnly: false
+      restartPolicy: Never
+      volumes:
+        - name: host-volume
+          hostPath:
+            path: /out
+        - name: docker-volume
+          hostPath:
+            path: /var/run/docker.sock
+        - configMap:
+            name: zap-configmap
+          name: zap-configmap

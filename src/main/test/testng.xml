@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite thread-count="10" verbose="2" name="Test Suite" annotations="JDK" parallel="tests">
+  <test name="flipkart">
+        <classes>
+        <class name="com.sampletestpackage.Flipkart"/>
+        </classes>
+  </test>
+  <test name="flipkartsearchproducts">
+        <classes>
+        <class name="com.sampletestpackage.Flipkartproducts"/>
+        </classes>
+  </test>
+  <test name="flipkartremovecart">
+        <classes>
+        <class name="com.sampletestpackage.Flipkartremovecart"/>
+        </classes>
+  </test>
+  <test name="flipkartlogout">
+        <classes>
+        <class name="com.sampletestpackage.Flipkartlogout"/>
+        </classes>
+  </test>
+  <test name="SeleniumGrid">
+        <classes>
+        <class name="com.objectrepository.demo.SeleniumGrid"/>
+        </classes>
+  </test>
+  <test name="SeleniumGridnext">
+        <classes>
+        <class name="com.objectrepository.demo.SeleniumGridclicknext"/>
+        </classes>
+  </test>
+  <test name="SeleniumGridcontinue">
+        <classes>
+        <class name="com.objectrepository.demo.SeleniumGridcontinuekeywords"/>
+        </classes>
+  </test>
+  <test name="SeleniumGridkeywords">
+        <classes>
+        <class name="com.objectrepository.demo.SeleniumGridkeywords"/>
+        </classes>
+  </test>
+  <test name="SeleniumGridpython">
+        <classes>
+        <class name="com.objectrepository.demo.SeleniumGridpython"/>
+        </classes>
+  </test>
+  <test name="SeleniumGridreferences">
+        <classes>
+        <class name="com.objectrepository.demo.SeleniumGridreferences"/>
+        </classes>
+  </test>
+</suite>
